@@ -12,6 +12,68 @@ test 3
 using adadfruit icm20948 library
 using adafruit bmp280 library
 test different data rates 10, 20, 50, 100
+
+Expected behavior in each state
+
+STARTUP
+
+IDLE
+
+ARMED
+- collecting data 
+- looking for liftoff
+
+BOOST
+-collecting data
+- looking for burnout
+
+COAST
+- collecting data
+- looking for 
+
+APOGEE
+
+FREEFALL
+
+DESCENT
+
+LANDED
+
+SAFED
+
+ERROR
+
+
+
+
+NAMES SUBJECT TO CHANGES
+
+ramLogBuffer (byte[])
+ - block of memory holding FlightData samples
+ - memcpy used to copy new samples into array
+ - memcpy FLightData records out of this array when dumping values
+ 
+ramLogIndex (size_t)
+ - Current write pointer within RAM buffer, how many bytes are stored in the buffer
+ - Tells how many samples have been written. where next sample will be written, shows how full buffer is
+ - after each sample is added, this value shall be incremented by sizeof(FlightData)
+ 
+MAX_RAM_LOG_SIZE
+ - total capacity of RAM buffer 
+ - how many bytes of RAM are dedicated to holding FLightData samples
+ - Used when declaring size of RAM buffer and when determining if there is enough room for another sample
+ 
+MAX_SAMPLES
+ - max number of samples that can be held in buffer
+ -  = MAX_RAM_LOG_SIZE/sizeof(FLightData)
+ 
+currentSamples 
+ - = ramLogIndex/sizeof(FLightData)
+ 
+MAX_DURATION_SECONDS
+ - (MAX_SAMPLES)/(SENSOR_READ_INTERVAL_MS) * 1000
+ 
+
 -----------------------------------------------------------------------------
 
 */
@@ -41,13 +103,14 @@ unisgned long liftoffTime = -1;
 
 //flight data, init struct, set initial values
 struct __attribute__ ((packed)) FlightData {
-	unisgned long timestamp;
-	float temperature;
-	float pressure;
-	float alttude;
-	float accelX, accelY, accelZ;
-	float gyroX, gyroY, gyroZ;
-	uint8_t flight_state
+	unisgned long timestamp; //4 bytes
+	float temperature; // 4 bytes
+	float pressure; // 4 bytes
+	float alttude; //4 bytes
+	float accelX, accelY, accelZ; //4+4+4=12 bytes
+	float gyroX, gyroY, gyroZ; //4+4+4=12 bytes
+	uint8_t flight_state // 1 byte
+	//4+4+4+4+12+12+1=41 total bytes
 }
 
 //flight state enum
