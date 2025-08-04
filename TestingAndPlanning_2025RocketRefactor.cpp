@@ -92,12 +92,12 @@ MAX_DURATION_SECONDS
 */
 
 
-#include Arduino
-#include wire
-#include adafruit_sensor
-#include adafruit_BMP280
-#include adafruit_ICM20948
-#include adafruit_ICM20X
+#include <Arduino.h>
+#include <Wire.h>
+#include Adafruit_sensor
+#include <Adafruit_BMP280.h>
+#include <Adafruit_ICM20948.h>
+#include <Adafruit_ICM20X.h>
 
 //function protos
 
@@ -113,7 +113,8 @@ Adafruit ICM_20948 icm;
 //timing variables
 unisgned long lastSensorReadTime = 0;
 const unsigned long SENSOR_READ_INTERVAL_MS = 10; //10ms=100hz, 20ms=50hz, 50ms=10hz
-unisgned long liftoffTime = -1;
+unsigned long liftoffTime = -1;
+unsigned long timeOfLastTransition = 0;
 
 //flight data, init struct, set initial values
 struct __attribute__ ((packed)) FlightData {
@@ -168,6 +169,10 @@ void setup(){
 	 while(1);
  }
  //init icm
+ if(!icm.beginI2C()){
+	 Serial.println("Check imu wiring, a problem occured");
+	 while(1);
+ }
  
  //set ranges for bmp
  bmp.setSampling(ADAFRUIT_BMP280::MODE_NORMAL,
@@ -176,6 +181,7 @@ void setup(){
 				ADAFRUIT_BMP280::FILTER_X4,
 				ADAFRUIT_BMP280::STANDBY_MS_0_5);
  Serial.println("BMP parameters set");
+ 
  //set ranges for icm
  //set rates for icm
  
@@ -195,13 +201,29 @@ void loop(){
 		}	
 	}
 	
-	if(currentFlightState == IDLE){}
-	if(currentFlightState == BOOST && time elapsed since transition >= 5){}
-	if(currentFlightState == COAST && time elapsed since transition >= 8){}
-	if(currentFlightState == APOGEE && time elapsed since transition >= 3){}
-	if(currentFlightState == FREEFALL && time elapsd since transition >= 3){}
-	if(currentFlightState == DESCENT && time elapsed since transition >= 12){}
-	if(data has been succesfully transferred to correct storage medium){}
+	if(currentFlightState == IDLE){
+		//WAIT FOR BUTTON PRESS TO MOVE TO ARMED, THIS IF STATEMENT MIGHT NOT BE NEEDED WILL LIKELY BE HANDLED IN THE HANDLEBUTTONPRESS() FUNCTION
+	}
+	if(currentFlightState == BOOST && millis() - timeOfLastTransition >= 5000){
+		currentFlightState = COAST;
+	}
+	if(currentFlightState == COAST && millis() - timeOfLastTransition >= 8000){
+		currentFlightState = APOGEE;
+	}
+	if(currentFlightState == APOGEE && millis() - timeOfLastTransition >= 3000){
+		currentFlightState = FREEFALL;
+	}
+	if(currentFlightState == FREEFALL && millis() - timeOfLastTransition >= 3000){
+		currentFlightState = DESCENT;
+	}
+	if(currentFlightState == DESCENT && millis() - timeOfLastTransition >= 12000){
+		currentFlightState = LANDED;
+	}
+	if(data has been succesfully transferred to correct storage medium){
+		currentFlightData = SAFED
+	
+	
+	//ERROR SCENARIOS????????????
 }
 
 void dumpRamToSerial(){
@@ -276,5 +298,6 @@ void handleButtonPress(){
 	}
 }
 
-void setStatusLED(){
+void setStatusLED(bool on){
+	digitalWrite(statusLedPin, on ? HIGH : LOW);
 }
