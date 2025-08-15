@@ -94,7 +94,7 @@ MAX_DURATION_SECONDS
 
 #include <Arduino.h>
 #include <Wire.h>
-#include Adafruit_sensor
+#include <Adafruit_Sensor.h>
 #include <Adafruit_BMP280.h>
 #include <Adafruit_ICM20948.h>
 #include <Adafruit_ICM20X.h>
@@ -151,6 +151,10 @@ byte ramBuffer[MAX_RAM_BUFFER_SIZE]
 size_t ramBufferIndex = 0;
 int currentSamples = 0;
 
+//OTHER VARIABLES
+
+const float LOCAL_GROUND_PRESSURE = 1020.6; //THIS NEEDS TO BE UPDATED AT EACH LAUNCH FOR ACCURACY
+
 
 void setup(){
  Serial.begin(115200);
@@ -183,7 +187,12 @@ void setup(){
  Serial.println("BMP parameters set");
  
  //set ranges for icm
+ icm.setAccelerometerRange();
+ icm.getGyroRange();
  //set rates for icm
+ icm.setAccelRateDivisior();
+ icm.setGyroRateDivisor();
+ icm.setMagDataRate();
  
  
  currentFlightState = IDLE;
@@ -201,9 +210,15 @@ void loop(){
 		}	
 	}
 	
+	//the IDLE -> ARMED and ARMED -> BOOST transitions are handled in the handleButtonPress() function
+	/*
 	if(currentFlightState == IDLE){
 		//WAIT FOR BUTTON PRESS TO MOVE TO ARMED, THIS IF STATEMENT MIGHT NOT BE NEEDED WILL LIKELY BE HANDLED IN THE HANDLEBUTTONPRESS() FUNCTION
 	}
+	
+	if(currentFlightState == ARMED){
+	}
+	*/
 	if(currentFlightState == BOOST && millis() - timeOfLastTransition >= 5000){
 		currentFlightState = COAST;
 	}
@@ -218,10 +233,11 @@ void loop(){
 	}
 	if(currentFlightState == DESCENT && millis() - timeOfLastTransition >= 12000){
 		currentFlightState = LANDED;
+		dumpRamToSerial();
 	}
 	if(data has been succesfully transferred to correct storage medium){
 		currentFlightData = SAFED
-	
+	}
 	
 	//ERROR SCENARIOS????????????
 }
@@ -267,6 +283,22 @@ void logFlightData(){
 	currentData.flight_state = currentFlightState;
 	
 	//bmp/imu events
+	sensors_event_t accEvent;
+	sensor_event_t gyroEvent;
+	
+	icm.getEvent(&accEvent, &gyroEvent);
+	
+	currentData.accelX = accEvent.acceleration.x;
+	currentData.accelY = accEvent.acceleration.y;
+	currentData.accelZ = accEvent.accEvent.z;
+	
+	currentData.gyroX = gyroEvent.gyro.x;
+	currentData.gyroY = gyroEvent.gyro.y;
+	currentData.gyroZ = gyroEvent.gyro.z;
+	
+	currentData.pressure = bmp.readPressure();
+	currentData.altitude = bmp.readAltitude(LOCAL_GROUND_PRESSURE);
+	currentData.temperature = bmp.readTemperature();
 	
 	if(ramBufferIndex + sizeof(FlightData) <= MAX_RAM_BUFFER_SIZE){
 		memcpy(&ramBuffer[ramBufferIndex], &currentData, sizeof(FlightData));
@@ -277,9 +309,8 @@ void logFlightData(){
 			currentFlightState = ERROR;
 			Serial.println("RAM Buffer full, ERROR);
 		}
-	}
-	
-}
+	}//end else
+}//end logFlightData()
 
 void handleButtonPress(){
 	static unisgned long lastButtonPressTime = 0;
@@ -296,8 +327,8 @@ void handleButtonPress(){
 				break;
 		}
 	}
-}
+}//end handleButtonPress()
 
 void setStatusLED(bool on){
 	digitalWrite(statusLedPin, on ? HIGH : LOW);
-}
+}//end setStatusLED()
